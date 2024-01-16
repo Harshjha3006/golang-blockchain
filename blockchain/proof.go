@@ -58,7 +58,7 @@ func (p *ProofOfWork) Run() (int, []byte) {
 }
 
 func (p *ProofOfWork) InitData(nonce int) []byte {
-	res := bytes.Join([][]byte{p.Block.Data, p.Block.PrevHash, ToHex(int64(nonce)), ToHex(int64(Difficulty))}, []byte{})
+	res := bytes.Join([][]byte{p.Block.HashTransactions(), p.Block.PrevHash, ToHex(int64(nonce)), ToHex(int64(Difficulty))}, []byte{})
 	return res
 }
 
