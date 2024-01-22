@@ -6,7 +6,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/dgraph-io/badger/v4"
+	"github.com/dgraph-io/badger"
 )
 
 type BlockChain struct {
@@ -30,10 +30,7 @@ func (chain *BlockChain) AddBlock(txs []*Transaction) {
 	err := chain.Database.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte("lh"))
 		Handle(err)
-		err = item.Value(func(val []byte) error {
-			lastHash = append(lastHash, val...)
-			return nil
-		})
+		lastHash, err = item.Value()
 		return err
 	})
 	Handle(err)
@@ -64,16 +61,17 @@ func ContinueBlockChain() *BlockChain {
 	}
 
 	var lastHash []byte
-	db, err := badger.Open(badger.DefaultOptions(dbPath))
+	opts := badger.DefaultOptions
+	opts.Dir = dbPath
+	opts.ValueDir = dbPath
+
+	db, err := badger.Open(opts)
 	Handle(err)
 
 	err = db.Update(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte("lh"))
 		Handle(err)
-		err = item.Value(func(val []byte) error {
-			lastHash = append(lastHash, val...)
-			return nil
-		})
+		lastHash, err = item.Value()
 		return err
 	})
 	Handle(err)
@@ -88,7 +86,11 @@ func InitBlockChain(address string) *BlockChain {
 	}
 
 	var lastHash []byte
-	db, err := badger.Open(badger.DefaultOptions(dbPath))
+	opts := badger.DefaultOptions
+	opts.Dir = dbPath
+	opts.ValueDir = dbPath
+
+	db, err := badger.Open(opts)
 	Handle(err)
 
 	err = db.Update(func(txn *badger.Txn) error {
@@ -116,10 +118,8 @@ func (iter *BlockChainIterator) Next() *Block {
 	err := iter.Database.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(iter.CurrentHash)
 		Handle(err)
-		err = item.Value(func(val []byte) error {
-			block = Deserialize(append([]byte{}, val...))
-			return nil
-		})
+		encodedBlock, err := item.Value()
+		block = Deserialize(encodedBlock)
 		return err
 	})
 	Handle(err)
