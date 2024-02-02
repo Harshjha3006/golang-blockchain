@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/gob"
 	"log"
 )
@@ -32,13 +31,12 @@ func Genesis(coinbase *Transaction) (b *Block) {
 
 func (b *Block) HashTransactions() []byte {
 	var txHashes [][]byte
-	var txHash [32]byte
 
 	for _, tx := range b.Transactions {
-		txHashes = append(txHashes, tx.Id)
+		txHashes = append(txHashes, tx.Serialize())
 	}
-	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
-	return txHash[:]
+	tree := NewMerkleTree(txHashes)
+	return tree.RootNode.Data
 }
 func (b *Block) Serialize() []byte {
 	var res bytes.Buffer

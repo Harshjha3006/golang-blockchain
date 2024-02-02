@@ -35,7 +35,10 @@ func (tx *Transaction) setId() {
 
 func CoinbaseTx(to string, data string) *Transaction {
 	if data == "" {
-		data = fmt.Sprintf("Coins to %s", to)
+		randData := make([]byte, 24)
+		_, err := rand.Read(randData)
+		Handle(err)
+		data = fmt.Sprintf("%x", randData)
 	}
 	txinput := TxInput{[]byte{}, -1, nil, []byte(data)}
 	txoutput := *NewTXOutput(to, 100)
@@ -188,4 +191,14 @@ func (tx Transaction) String() string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+func (tx *Transaction) Serialize() []byte {
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+
+	err := encoder.Encode(tx)
+
+	Handle(err)
+	return buffer.Bytes()
 }
