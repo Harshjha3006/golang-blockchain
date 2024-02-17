@@ -55,16 +55,14 @@ func (tx *Transaction) isCoinbase() bool {
 	return len(tx.Inputs) == 1 && len(tx.Inputs[0].Id) == 0 && tx.Inputs[0].OutIndex == -1
 }
 
-func NewTransaction(from string, to string, amount int, utxo UTXOSet) *Transaction {
+func NewTransaction(w *wallet.Wallet, to string, amount int, utxo UTXOSet) *Transaction {
 	var inputs []TxInput
 	var outputs []TxOutput
 
-	wallets, err := wallet.CreateWallets()
-	Handle(err)
-	w := wallets.GetWallet(from)
 	pubKeyHash := wallet.PubkeyHash(w.PublicKey)
 	acc, validOpts := utxo.FindSpendableOutputs(pubKeyHash, amount)
 
+	from := string(w.Address())
 	if acc < amount {
 		log.Panic("Err : Not enough funds")
 	}
@@ -115,7 +113,7 @@ func (tx *Transaction) Sign(private ecdsa.PrivateKey, prevTxs map[string]Transac
 
 }
 
-func (tx *Transaction) Verify(private ecdsa.PrivateKey, prevTxs map[string]Transaction) bool {
+func (tx *Transaction) Verify(prevTxs map[string]Transaction) bool {
 	if tx.isCoinbase() {
 		return true
 	}

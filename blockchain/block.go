@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"encoding/gob"
 	"log"
+	"time"
 )
 
 type Block struct {
+	Timstamp     int64
 	Hash         []byte
 	Transactions []*Transaction
 	PrevHash     []byte
+	Height       int
 	Nonce        int
 }
 
-func CreateBlock(txs []*Transaction, prevHash []byte) (b *Block) {
-	newBlock := &Block{[]byte{}, txs, prevHash, 0}
+func CreateBlock(txs []*Transaction, prevHash []byte, height int) (b *Block) {
+	newBlock := &Block{time.Now().Unix(), []byte{}, txs, prevHash, height, 0}
 	pow := InitPow(newBlock)
 
 	nonce, hash := pow.Run()
@@ -25,7 +28,7 @@ func CreateBlock(txs []*Transaction, prevHash []byte) (b *Block) {
 }
 
 func Genesis(coinbase *Transaction) (b *Block) {
-	newBlock := CreateBlock([]*Transaction{coinbase}, []byte{})
+	newBlock := CreateBlock([]*Transaction{coinbase}, []byte{}, 0)
 	return newBlock
 }
 
