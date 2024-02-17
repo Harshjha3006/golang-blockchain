@@ -292,6 +292,9 @@ func (chain *BlockChain) SignTransaction(private ecdsa.PrivateKey, tx *Transacti
 }
 
 func (chain *BlockChain) VerifyTransaction(tx *Transaction) bool {
+	if tx.isCoinbase() {
+		return true
+	}
 	prevTxs := make(map[string]Transaction)
 
 	for _, in := range tx.Inputs {
@@ -316,7 +319,7 @@ func DeserializeTransaction(data []byte) Transaction {
 func retry(dir string, opts badger.Options) (*badger.DB, error) {
 	lockPath := filepath.Join(dir, "LOCK")
 	if err := os.Remove(lockPath); err != nil {
-		return nil, fmt.Errorf(`Removing lock file : %s`, err)
+		return nil, fmt.Errorf("error in removing lock file : %s", err)
 	}
 	retryOpts := opts
 	retryOpts.Truncate = true

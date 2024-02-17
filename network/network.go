@@ -311,7 +311,7 @@ func HandleTransaction(req []byte, chain *blockchain.BlockChain) {
 	tx := blockchain.DeserializeTransaction(txData)
 	memoryPool[hex.EncodeToString(tx.Id)] = tx
 
-	fmt.Printf("%s, %d", nodeAddress, len(memoryPool))
+	fmt.Printf("%s, %d\n", nodeAddress, len(memoryPool))
 
 	if nodeAddress == KnownNodes[0] {
 		for _, node := range KnownNodes {
@@ -331,7 +331,7 @@ func MineTx(chain *blockchain.BlockChain) {
 	var txs []*blockchain.Transaction
 
 	for id := range memoryPool {
-		fmt.Printf("tx : %s", memoryPool[id].Id)
+		fmt.Printf("tx : %s\n", memoryPool[id].Id)
 		tx := memoryPool[id]
 		if chain.VerifyTransaction(&tx) {
 			txs = append(txs, &tx)

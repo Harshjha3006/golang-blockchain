@@ -12,6 +12,7 @@ import (
 	"log"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/Harshjha3006/golang-blockchain/wallet"
 )
@@ -26,7 +27,7 @@ func (tx *Transaction) setId() {
 	var buffer bytes.Buffer
 	var hash [32]byte
 	encoder := gob.NewEncoder(&buffer)
-	err := encoder.Encode(tx)
+	err := encoder.Encode(time.Now().Unix())
 	Handle(err)
 	hash = sha256.Sum256(buffer.Bytes())
 	tx.Id = hash[:]
@@ -92,23 +93,28 @@ func (tx *Transaction) Sign(private ecdsa.PrivateKey, prevTxs map[string]Transac
 	if tx.isCoinbase() {
 		return
 	}
+
 	for _, in := range tx.Inputs {
 		if prevTxs[hex.EncodeToString(in.Id)].Id == nil {
-			log.Panic("Error : Previous Transaction does not exists")
+			log.Panic("ERROR: Previous transaction is not correct")
 		}
 	}
+
 	txCopy := tx.TrimmedCopy()
 
 	for inId, in := range txCopy.Inputs {
-		prevTx := prevTxs[hex.EncodeToString(in.Id)]
+		prevTX := prevTxs[hex.EncodeToString(in.Id)]
 		txCopy.Inputs[inId].Signature = nil
-		txCopy.Inputs[inId].PubKey = prevTx.Outputs[in.OutIndex].PubKeyHash
-		txCopy.setId()
-		txCopy.Inputs[inId].PubKey = nil
-		r, s, err := ecdsa.Sign(rand.Reader, &private, txCopy.Id)
+		txCopy.Inputs[inId].PubKey = prevTX.Outputs[in.OutIndex].PubKeyHash
+
+		dataToSign := fmt.Sprintf("%x\n", txCopy)
+
+		r, s, err := ecdsa.Sign(rand.Reader, &private, []byte(dataToSign))
 		Handle(err)
 		signature := append(r.Bytes(), s.Bytes()...)
+
 		tx.Inputs[inId].Signature = signature
+		txCopy.Inputs[inId].PubKey = nil
 	}
 
 }
@@ -117,41 +123,43 @@ func (tx *Transaction) Verify(prevTxs map[string]Transaction) bool {
 	if tx.isCoinbase() {
 		return true
 	}
+
 	for _, in := range tx.Inputs {
 		if prevTxs[hex.EncodeToString(in.Id)].Id == nil {
-			log.Panic("Error : Previous Transaction does not exists")
+			log.Panic("Previous transaction not correct")
 		}
 	}
-	txCopy := tx.TrimmedCopy()
 
-	for inId, in := range txCopy.Inputs {
+	txCopy := tx.TrimmedCopy()
+	curve := elliptic.P256()
+
+	for inId, in := range tx.Inputs {
 		prevTx := prevTxs[hex.EncodeToString(in.Id)]
 		txCopy.Inputs[inId].Signature = nil
 		txCopy.Inputs[inId].PubKey = prevTx.Outputs[in.OutIndex].PubKeyHash
-		txCopy.setId()
-		txCopy.Inputs[inId].PubKey = nil
 
-		curve := elliptic.P256()
 		r := big.Int{}
 		s := big.Int{}
 
-		signlen := len(in.Signature)
-		r.SetBytes(in.Signature[:(signlen / 2)])
-		s.SetBytes(in.Signature[(signlen / 2):])
+		sigLen := len(in.Signature)
+		r.SetBytes(in.Signature[:(sigLen / 2)])
+		s.SetBytes(in.Signature[(sigLen / 2):])
 
 		x := big.Int{}
 		y := big.Int{}
+		keyLen := len(in.PubKey)
+		x.SetBytes(in.PubKey[:(keyLen / 2)])
+		y.SetBytes(in.PubKey[(keyLen / 2):])
 
-		pubLen := len(in.PubKey)
-		x.SetBytes(in.PubKey[:(pubLen / 2)])
-		y.SetBytes(in.PubKey[(pubLen / 2):])
+		dataToVerify := fmt.Sprintf("%x\n", txCopy)
 
 		rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
-
-		if !ecdsa.Verify(&rawPubKey, txCopy.Id, &r, &s) {
+		if !ecdsa.Verify(&rawPubKey, []byte(dataToVerify), &r, &s) {
 			return false
 		}
+		txCopy.Inputs[inId].PubKey = nil
 	}
+
 	return true
 }
 func (tx *Transaction) TrimmedCopy() Transaction {
